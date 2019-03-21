@@ -910,6 +910,15 @@ func (session *StratumSession) getUserSuffix() string {
 	return serverInfo.UserSuffix
 }
 
+func (session *StratumSession) getSendable() string {
+	serverInfo, ok := session.manager.stratumServerInfoMap[session.miningCoin]
+	if !ok {
+		return "1"
+	}
+
+	return serverInfo.Sendable
+}
+
 // 发送 mining.subscribe
 func (session *StratumSession) sendMiningAuthorizeToServer(withSuffix bool) (authWorkerName string, authWorkerPasswd string, err error) {
 	if withSuffix {

@@ -18,6 +18,7 @@ import (
 type StratumServerInfo struct {
 	URL        string
 	UserSuffix string
+	Sendable   string
 }
 
 // StratumServerInfoMap Stratum服务器的信息散列表

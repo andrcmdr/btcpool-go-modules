@@ -87,8 +87,10 @@ func (conf *ConfigData) LoadFromFile(file string) (err error) {
 		if v.UserSuffix == "" {
 			v.UserSuffix = k
 			conf.StratumServerMap[k] = v
+		} else {
+			conf.StratumServerMap[k] = v
 		}
-		glog.Info("Chain: ", k, ", UserSuffix: ", conf.StratumServerMap[k].UserSuffix)
+		glog.Info("Chain: ", k, ", URL: ", conf.StratumServerMap[k].URL, ", UserSuffix: ", conf.StratumServerMap[k].UserSuffix, ", isSendable: ", conf.StratumServerMap[k].Sendable)
 	}
 
 	return
