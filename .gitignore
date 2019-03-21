@@ -17,7 +17,7 @@
 debug
 .vscode/
 log/
-config.json
+# config.json
 testproject
 
 # build dir
