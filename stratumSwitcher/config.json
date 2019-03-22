@@ -3,10 +3,10 @@
     "ChainType": "bitcoin",
     "ListenAddr": "0.0.0.0:18080",
     "StratumServerMap": {
-        "btc": { "URL": "127.0.0.1:3333", "Sendable": "1" },
-        "bcc": { "URL": "127.0.0.1:3334", "Sendable": "0" },
-        "bcc2btc": { "URL": "127.0.0.1:3335", "UserSuffix": "btc", "Sendable": "1" },
-        "btc2bcc": { "URL": "127.0.0.1:3336", "UserSuffix": "bcc", "Sendable": "0" }
+        "btc": { "URL": "127.0.0.1:3333", "ExternalPool": true },
+        "bcc": { "URL": "127.0.0.1:3334", "ExternalPool": false },
+        "bcc2btc": { "URL": "127.0.0.1:3335", "ExternalPool": true, "UserPrefix": "", "UserSuffix": "btc" },
+        "btc2bcc": { "URL": "127.0.0.1:3336", "ExternalPool": false, "UserPrefix": "", "UserSuffix": "bcc" }
     },
     "ZKBroker": [ "127.0.0.1:2181" ],
     "ZKServerIDAssignDir": "/stratumSwitcher/bitcoin_swid/",
@@ -19,4 +19,3 @@
     "EnableHTTPDebug": false,
     "HTTPDebugListenAddr": "127.0.0.1:6060"
 }
-
