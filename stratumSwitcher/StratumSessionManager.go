@@ -16,9 +16,10 @@ import (
 
 // StratumServerInfo Stratum服务器的信息
 type StratumServerInfo struct {
-	URL        string
-	UserSuffix string
-	Sendable   string
+	URL          string
+	ExternalPool bool
+	UserPrefix   string
+	UserSuffix   string
 }
 
 // StratumServerInfoMap Stratum服务器的信息散列表
