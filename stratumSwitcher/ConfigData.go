@@ -90,7 +90,7 @@ func (conf *ConfigData) LoadFromFile(file string) (err error) {
 		} else {
 			conf.StratumServerMap[k] = v
 		}
-		glog.Info("Chain: ", k, ", URL: ", conf.StratumServerMap[k].URL, ", UserSuffix: ", conf.StratumServerMap[k].UserSuffix, ", isSendable: ", conf.StratumServerMap[k].Sendable)
+		glog.Info("Chain: ", k, ", URL: ", conf.StratumServerMap[k].URL, ", isExternalPool: ", conf.StratumServerMap[k].ExternalPool, ", UserPrefix: ", conf.StratumServerMap[k].UserPrefix, ", UserSuffix: ", conf.StratumServerMap[k].UserSuffix)
 	}
 
 	return
