@@ -860,7 +860,11 @@ func (session *StratumSession) sendMiningSubscribeToServer() (userAgent string, 
 		clientIPLong := IP2Long(clientIP)
 		// 不直接使用 session.sessionIDString，因为在DCR币种里，它已经进行了填充和字节序颠倒。
 		sessionIDString := Uint32ToHex(session.sessionID)
-		session.stratumSubscribeRequest.SetParam(userAgent, sessionIDString, clientIPLong)
+		if session.isExternalPool() {
+			session.stratumSubscribeRequest.SetParam(userAgent, sessionIDString)
+		} else {
+			session.stratumSubscribeRequest.SetParam(userAgent, sessionIDString, clientIPLong)
+		}
 
 	case ProtocolEthereumStratum:
 		fallthrough
@@ -881,9 +885,15 @@ func (session *StratumSession) sendMiningSubscribeToServer() (userAgent string, 
 		clientIP := session.clientIPPort[:strings.LastIndex(session.clientIPPort, ":")]
 		clientIPLong := IP2Long(clientIP)
 
+		// sessionIDString = Uint32ToHex(session.sessionID)
+
 		// Session ID 做为第三个参数传递
 		// 矿机IP做为第四个参数传递
-		session.stratumSubscribeRequest.SetParam(userAgent, protocol, session.sessionIDString, clientIPLong)
+		if session.isExternalPool() {
+			session.stratumSubscribeRequest.SetParam(userAgent, protocol, session.sessionIDString)
+		} else {
+			session.stratumSubscribeRequest.SetParam(userAgent, protocol, session.sessionIDString, clientIPLong)
+		}
 
 	default:
 		glog.Fatal("Unimplemented Stratum Protocol: ", session.protocolType)
@@ -904,29 +914,63 @@ func (session *StratumSession) sendMiningSubscribeToServer() (userAgent string, 
 func (session *StratumSession) getUserSuffix() string {
 	serverInfo, ok := session.manager.stratumServerInfoMap[session.miningCoin]
 	if !ok {
-		return session.miningCoin
+		// return session.miningCoin
+		return ""
 	}
 
 	return serverInfo.UserSuffix
 }
 
-func (session *StratumSession) getSendable() string {
+func (session *StratumSession) getUserPrefix() string {
 	serverInfo, ok := session.manager.stratumServerInfoMap[session.miningCoin]
 	if !ok {
-		return "1"
+		// return session.miningCoin
+		return ""
 	}
 
-	return serverInfo.Sendable
+	return serverInfo.UserPrefix
+}
+
+// get pool status - 'true' if external or 'false' if internal
+// if external pool - bypass session ID from pool to the miner, don't generate own session ID
+func (session *StratumSession) isExternalPool() bool {
+	serverInfo, ok := session.manager.stratumServerInfoMap[session.miningCoin]
+	if !ok {
+		return true
+	}
+
+	return serverInfo.ExternalPool
+}
+
+// send correct sessionID as ExtraNonce from pool to the miner
+func (session *StratumSession) sendExtraNonceToClient(ExtraNonce string) error {
+	if ExtraNonce == "" {
+		ExtraNonce = session.sessionIDString
+	}
+	payload := JSONRPCRequest{
+		nil,
+		"mining.set_extranonce",
+		JSONRPCArray{ExtraNonce, 8},
+		""}
+	_, err := session.writeJSONNotifyToClient(&payload)
+	//	if err != nil {
+	//		return err
+	//	}
+	return err
 }
 
 // 发送 mining.subscribe
 func (session *StratumSession) sendMiningAuthorizeToServer(withSuffix bool) (authWorkerName string, authWorkerPasswd string, err error) {
-	if withSuffix {
+	if withSuffix || session.getUserSuffix() != "" {
 		// 带币种后缀的矿机名
 		authWorkerName = session.subaccountName + "_" + session.getUserSuffix() + session.minerNameWithDot
 	} else {
 		// 无币种后缀的矿工名
 		authWorkerName = session.fullWorkerName
+	}
+
+	if session.getUserPrefix() != "" {
+		authWorkerName = session.getUserPrefix() + authWorkerName
 	}
 
 	var request JSONRPCRequest
@@ -1149,6 +1193,33 @@ func (session *StratumSession) stratumHandleServerSubscribeResponse(response *JS
 			return ErrParseSubscribeResponseFailed
 		}
 
+		// set correct sessionID as ExtraNonce and suppress session ID mismatched exception (ErrSessionIDInconformity)
+		if session.isExternalPool() {
+			if glog.V(3) {
+				glog.Info("ExternalPool bypass workaround: ", "session.sessionIDString = ", session.sessionIDString, ", session.sessionID = ", session.sessionID, ", sessionID = ", sessionID)
+			}
+
+			session.sessionIDString = sessionID
+
+			sid, err := strconv.ParseUint(sessionID, 16, 32)
+			if err != nil {
+				glog.Warning("Parse sessionID with type-cast to uint failed!")
+				return nil
+			}
+			session.sessionID = uint32(sid)
+
+			err = session.sendExtraNonceToClient(sessionID)
+			if err != nil {
+				glog.Error("ExternalPool bypass workaround: sendExtraNonceToClient failed with error: ", err)
+			}
+
+			if glog.V(3) {
+				glog.Info("ExternalPool bypass workaround: ", "session.sessionIDString = ", session.sessionIDString, ", session.sessionID = ", session.sessionID, ", sessionID = ", sessionID)
+			}
+
+			return nil
+		}
+
 		// 服务器返回的 sessionID 与当前保存的不一致，此时挖到的所有share都会是无效的，断开连接
 		if sessionID != session.sessionIDString {
 			glog.Warning("Session ID Mismatched:  ", sessionID, " != ", session.sessionIDString)
@@ -1186,6 +1257,38 @@ func (session *StratumSession) stratumHandleServerSubscribeResponse(response *JS
 		if !ok {
 			glog.Warning("Parse Subscribe Response Failed: result[1] is not a string")
 			return ErrParseSubscribeResponseFailed
+		}
+
+		if session.isExternalPool() {
+			if glog.V(3) {
+				glog.Info("ExternalPool bypass workaround: ", "session.sessionIDString = ", session.sessionIDString, ", session.sessionID = ", session.sessionID, ", sessionID = ", sessionID, ", sessionExtraNonce = ", sessionExtraNonce, ", extraNonce = ", extraNonce)
+			}
+
+			session.sessionIDString = extraNonce
+			sessionID = extraNonce
+
+			sid, err := strconv.ParseUint(extraNonce, 16, 32)
+			if err != nil {
+				glog.Warning("Parse extraNonce with type-cast to uint failed!")
+				return nil
+			}
+			session.sessionID = uint32(sid)
+
+			sessionExtraNonce = extraNonce
+			if session.isNiceHashClient {
+				sessionExtraNonce = sessionExtraNonce[0:4]
+			}
+
+			err = session.sendExtraNonceToClient(extraNonce)
+			if err != nil {
+				glog.Error("ExternalPool bypass workaround: sendExtraNonceToClient failed with error: ", err)
+			}
+
+			if glog.V(3) {
+				glog.Info("ExternalPool bypass workaround: ", "session.sessionIDString = ", session.sessionIDString, ", session.sessionID = ", session.sessionID, ", sessionID = ", sessionID, ", sessionExtraNonce = ", sessionExtraNonce, ", extraNonce = ", extraNonce)
+			}
+
+			return nil
 		}
 
 		// 服务器返回的 sessionID 与当前保存的不一致，此时挖到的所有share都会是无效的，断开连接
