@@ -1,0 +1,122 @@
+# Official docker image.
+image: docker:17
+
+services:
+  - docker:17-dind
+
+stages:
+  #- pull
+  - build
+
+#gitpull:
+#  stage: pull
+#  before_script:
+#    - apk add --no-cache git
+#  script:
+#    - if [ ! -d "btcpool-go-modules" ]; then git clone -b master https://github.com/btccom/btcpool-go-modules.git; fi
+#    - cd btcpool-go-modules && git pull
+#    #- ls btcpool-go-modules/
+#  cache:
+#    key: src-btcpool-go-modules
+#    paths:
+#      - btcpool-go-modules/
+
+build-mmproxy:
+  stage: build
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - export BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
+  script:
+    - cd mergedMiningProxy
+    - docker build --build-arg "BUILD_TIME=$BUILD_TIME" --pull -t "$CI_REGISTRY_IMAGE/mmproxy:latest" .
+#  cache:
+#    key: src-btcpool-go-modules
+#    paths:
+#      - btcpool-go-modules/
+  after_script:
+    - docker push "$CI_REGISTRY_IMAGE/mmproxy:latest"
+  only:
+    - master
+
+build-sswitcher:
+  stage: build
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - export BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
+  script:
+    - cd stratumSwitcher
+    - docker build --build-arg "BUILD_TIME=$BUILD_TIME" --pull -t "$CI_REGISTRY_IMAGE/sswitcher:latest" .
+  after_script:
+    - docker push "$CI_REGISTRY_IMAGE/sswitcher:latest"
+  only:
+    - master
+
+build-initusercoin:
+  stage: build
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - export BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
+  script:
+    - cd initUserCoin
+    - docker build --build-arg "BUILD_TIME=$BUILD_TIME" --pull -t "$CI_REGISTRY_IMAGE/initusercoin:latest" .
+  after_script:
+    - docker push "$CI_REGISTRY_IMAGE/initusercoin:latest"
+  only:
+    - master
+
+build-swapiservice:
+  stage: build
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - export BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
+  script:
+    - cd switcherAPIServer
+    - docker build --build-arg "BUILD_TIME=$BUILD_TIME" --pull -t "$CI_REGISTRY_IMAGE/swapiservice:latest" .
+  after_script:
+    - docker push "$CI_REGISTRY_IMAGE/swapiservice:latest"
+  only:
+    - master
+
+build-loadbalancer:
+  stage: build
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - export BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
+  script:
+    - cd loadBalancer
+    - docker build --build-arg "BUILD_TIME=$BUILD_TIME" --pull -t "$CI_REGISTRY_IMAGE/loadbalancer:latest" .
+  after_script:
+    - docker push "$CI_REGISTRY_IMAGE/loadbalancer:latest"
+  only:
+    - master
+
+#build-master:
+#  stage: build
+#  script:
+#    - docker build --pull -t "$CI_REGISTRY_IMAGE" .
+#    - docker push "$CI_REGISTRY_IMAGE"
+#  only:
+#    - master
+
+#build:
+#  stage: build
+#  tags:
+#    - epic
+#  script:
+#    - docker build --pull -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" .
+#    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+#  except:
+#    - master
+
+build-sswitcher-dev:
+  stage: build
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - export BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
+  script:
+    - cd stratumSwitcher
+    - docker build --build-arg "BUILD_TIME=$BUILD_TIME" --pull -t "$CI_REGISTRY_IMAGE/sswitcher:${CI_COMMIT_REF_NAME}" .
+  after_script:
+    - docker push "$CI_REGISTRY_IMAGE/sswitcher:${CI_COMMIT_REF_NAME}"
+  only:
+    - sswitcher-sid-mod
